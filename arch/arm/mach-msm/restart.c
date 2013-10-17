@@ -38,6 +38,10 @@
 #include "msm_watchdog.h"
 #include "timer.h"
 
+#ifdef CONFIG_KEXEC_HARDBOOT
+#include <asm/kexec.h>
+#endif
+
 #define WDT0_RST	0x38
 #define WDT0_EN		0x40
 #define WDT0_BARK_TIME	0x4C
@@ -400,4 +404,39 @@ static int __init msm_restart_init(void)
 	return 0;
 }
 
+<<<<<<< HEAD
 late_initcall(msm_restart_init);
+=======
+late_initcall(msm_pmic_restart_init);
+
+#ifdef CONFIG_KEXEC_HARDBOOT
+static void msm_kexec_hardboot_hook(void)
+{
+	// Set PMIC to restart-on-poweroff
+	pm8xxx_reset_pwr_off(1);
+}
+#endif
+
+static int __init msm_restart_init(void)
+{
+#ifdef CONFIG_MSM_DLOAD_MODE
+	atomic_notifier_chain_register(&panic_notifier_list, &panic_blk);
+	dload_mode_addr = MSM_IMEM_BASE + DLOAD_MODE_ADDR;
+#ifdef CONFIG_LGE_CRASH_HANDLER
+	lge_error_handler_cookie_addr = MSM_IMEM_BASE +
+		LGE_ERROR_HANDLER_MAGIC_ADDR;
+#endif
+	set_dload_mode(download_mode);
+#endif
+	msm_tmr0_base = msm_timer_get_timer0_base();
+	restart_reason = MSM_IMEM_BASE + RESTART_REASON_ADDR;
+	pm_power_off = msm_power_off;
+
+#ifdef CONFIG_KEXEC_HARDBOOT
+	kexec_hardboot_hook = msm_kexec_hardboot_hook;
+#endif
+
+	return 0;
+}
+early_initcall(msm_restart_init);
+>>>>>>> d0aa8ad... Implement kexec-hardboot "Allows hard booting (i.e., with a full hardware reboot) to a kernel previously loaded in memory by kexec. This works around the problem of soft-booted kernel hangs due to improper device shutdown and/or reinitialization." More info in /arch/arm/Kconfig.
